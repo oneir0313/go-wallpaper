@@ -8,7 +8,9 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -22,21 +24,36 @@ var (
 	fullURLFile string
 )
 
-const picPath = "c:/Users/lennychang/Pictures/Saved Pictures/"
-
 func main() {
+	// 取得Windows Home目錄
+	currentUser, err := user.Current()
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+
+	picPath := currentUser.HomeDir + "\\Pictures\\Saved Pictures\\"
+
 	cr := cron.New()
 	c := colly.NewCollector()
-	_, err := cr.AddFunc("0, 0, 1, *, *", func() {
-		removeContents(picPath)
-		c.OnHTML(".media-download > a", func(e *colly.HTMLElement) {
-			monthStr := time.Now().Month().String()
-			imageHref := e.Attr("href")
 
-			if strings.Contains(strings.ToLower(imageHref), "2022_"+strings.ToLower(monthStr)) && e.Text == "1920 x 1080" {
+	// 執行排程每個月一號零點整執行下載
+	_, err = cr.AddFunc("0, 0, 1, *, *", func() {
+		err = removeContents(picPath)
+		if err != nil {
+			log.Fatalf(err.Error())
+		}
+
+		// 抓取觀光局網站上的下載錨點元素
+		c.OnHTML(".media-download > a", func(e *colly.HTMLElement) {
+			imageHref := e.Attr("href")
+			yearStr := strconv.Itoa(time.Now().Year())
+			monthStr := time.Now().Month().String()
+
+			// 判斷錨點元素內的年份月份有相符且符合1920x1080的字串
+			if strings.Contains(strings.ToLower(imageHref), yearStr+"_"+strings.ToLower(monthStr)) && e.Text == "1920 x 1080" {
 				fullURLFile = "https://www.taiwan.net.tw" + imageHref
 
-				// Build fileName from fullPath
+				// 建立檔案名稱
 				fileURL, err := url.Parse(fullURLFile)
 				if err != nil {
 					log.Fatal(err)
@@ -45,7 +62,7 @@ func main() {
 				segments := strings.Split(path, "/")
 				fileName = picPath + segments[len(segments)-1]
 
-				// Create blank file
+				// 建立空白檔案
 				file, err := os.Create(fileName)
 				if err != nil {
 					log.Fatal(err)
@@ -56,7 +73,7 @@ func main() {
 						return nil
 					},
 				}
-				// Put content on file
+				// 將內容物下載至檔案
 				resp, err := client.Get(fullURLFile)
 				if err != nil {
 					log.Fatal(err)
@@ -70,7 +87,7 @@ func main() {
 				fmt.Printf("Downloaded a file %s with size %d", fileName, size)
 			}
 		})
-		err := c.Visit("https://www.taiwan.net.tw/m1.aspx?sNo=0012076")
+		err = c.Visit("https://www.taiwan.net.tw/m1.aspx?sNo=0012076")
 		if err != nil {
 			fmt.Printf("Visit web url failed: %s\n", err.Error())
 		}
@@ -78,15 +95,19 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// goroutine執行cronjob
 	go cr.Start()
 
 	fmt.Println("Cron job start")
 
+	// 直到收到終止訊號保持服務執行
 	stopChan := make(chan os.Signal, 1)
 	signal.Notify(stopChan, syscall.SIGINT, syscall.SIGHUP, syscall.SIGTERM)
 	<-stopChan
 }
 
+// 刪除目錄上的所有檔案
 func removeContents(dir string) error {
 	d, err := os.Open(dir)
 	if err != nil {
