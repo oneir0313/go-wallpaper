@@ -15,4 +15,4 @@ go run main.go
 go build -o wallpaper.exe
 ```
 
-使用[nssm](https://nssm.cc/)將```.exe```加入執行
+使用[nssm](https://nssm.cc/)將```wallpaper.exe```加入執行
