@@ -30,7 +30,8 @@ func main() {
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
-
+	
+	// 下載桌布的路徑 可因應個人需求調整
 	picPath := currentUser.HomeDir + "\\Pictures\\Saved Pictures\\"
 
 	cr := cron.New()
@@ -38,6 +39,7 @@ func main() {
 
 	// 執行排程每個月一號零點整執行下載
 	_, err = cr.AddFunc("0, 0, 1, *, *", func() {
+		// 刪除上一個月份檔案
 		err = removeContents(picPath)
 		if err != nil {
 			log.Fatalf(err.Error())
@@ -87,6 +89,7 @@ func main() {
 				fmt.Printf("Downloaded a file %s with size %d", fileName, size)
 			}
 		})
+		// Colly訪問台灣觀光局網站
 		err = c.Visit("https://www.taiwan.net.tw/m1.aspx?sNo=0012076")
 		if err != nil {
 			fmt.Printf("Visit web url failed: %s\n", err.Error())
