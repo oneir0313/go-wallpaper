@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -8,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -22,25 +22,25 @@ import (
 var (
 	fileName    string
 	fullURLFile string
+	run bool
 )
 
+func init() {
+  flag.BoolVar(&run, "run", false, "run one time")
+}
+
+
 func main() {
-	// 取得Windows Home目錄
-	currentUser, err := user.Current()
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
-	
-	// 下載桌布的路徑 可因應個人需求調整
-	picPath := currentUser.HomeDir + "\\Pictures\\Saved Pictures\\"
+	flag.Parse()
+
+	picPath := "./pictures/"
 
 	cr := cron.New()
 	c := colly.NewCollector()
 
-	// 執行排程每個月一號零點整執行下載
-	_, err = cr.AddFunc("0, 0, 1, *, *", func() {
+	crawlPic := func() {
 		// 刪除上一個月份檔案
-		err = removeContents(picPath)
+		err := removeContents(picPath)
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
@@ -94,7 +94,15 @@ func main() {
 		if err != nil {
 			fmt.Printf("Visit web url failed: %s\n", err.Error())
 		}
-	})
+	}
+
+	if run {
+		crawlPic()
+		os.Exit(3)
+		return
+	}
+	// 執行排程每個月一號零點整執行下載
+	_, err := cr.AddFunc("0, 0, 1, *, *", crawlPic)
 	if err != nil {
 		log.Fatal(err)
 	}
