@@ -98,7 +98,6 @@ func main() {
 
 	if run {
 		crawlPic()
-		os.Exit(3)
 		return
 	}
 	// 執行排程每個月一號零點整執行下載
