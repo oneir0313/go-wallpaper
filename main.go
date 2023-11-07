@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -34,17 +33,23 @@ func main() {
 	flag.Parse()
 
 	picPath := "./pictures/"
+    log.SetFlags(log.Ldate | log.Ltime)
 
 	cr := cron.New()
-	c := colly.NewCollector()
-
+	
 	crawlPic := func() {
+		log.Printf("Start downloading pictures...")
+		c := colly.NewCollector()
 		// 刪除上一個月份檔案
 		err := removeContents(picPath)
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
 
+		c.OnRequest(func(r *colly.Request) {
+			log.Println("Visiting", r.URL)
+		})
+	
 		// 抓取觀光局網站上的下載錨點元素
 		c.OnHTML(".media-download > a", func(e *colly.HTMLElement) {
 			imageHref := e.Attr("href")
@@ -86,16 +91,16 @@ func main() {
 
 				defer file.Close()
 
-				fmt.Printf("Downloaded a file %s with size %d", fileName, size)
+				log.Printf("Downloaded a file %s with size %d", fileName, size)
 			}
 		})
 		// Colly訪問台灣觀光局網站
 		err = c.Visit("https://www.taiwan.net.tw/m1.aspx?sNo=0012076")
 		if err != nil {
-			fmt.Printf("Visit web url failed: %s\n", err.Error())
+			log.Printf("Visit web url failed: %s\n", err.Error())
 		}
 	}
-
+	
 	if run {
 		crawlPic()
 		return
@@ -105,12 +110,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	
 	// goroutine執行cronjob
 	go cr.Start()
-
-	fmt.Println("Cron job start")
-
+	
+	log.Println("Cron job start")
+	
 	// 直到收到終止訊號保持服務執行
 	stopChan := make(chan os.Signal, 1)
 	signal.Notify(stopChan, syscall.SIGINT, syscall.SIGHUP, syscall.SIGTERM)
