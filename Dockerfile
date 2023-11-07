@@ -20,5 +20,8 @@ CMD ["/code/bin/wallpaper"]
 
 FROM alpine
 RUN mkdir pictures
+RUN apk add -U tzdata
+ENV TZ=Asia/Taipei
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 COPY --from=builder /code/bin/wallpaper /
 CMD ["/wallpaper"]
